@@ -1,0 +1,47 @@
+---
+- hosts: ndfc2
+  gather_facts: no
+  vars:
+    fabric: "{{fabric1}}"
+    prefix_list:
+      - ACTION: "permit"
+        SEQ_NUM: "20"
+        IP_MASK: "192.168.129.1/24"
+        EXACT_PREFIX_LEN: ""
+        MIN_PREFIX_LEN: ""
+        MAX_PREFIX_LEN: ""
+        EXPLICIT_MASK: ""
+      - ACTION: "permit"
+        SEQ_NUM: "10"
+        IP_MASK: "192.168.128.1/24"
+        EXACT_PREFIX_LEN: ""
+        MIN_PREFIX_LEN: ""
+        MAX_PREFIX_LEN: ""
+        EXPLICIT_MASK: ""
+  tasks:
+    - name: Sort prefix list
+      set_fact:
+        prefix_list: "{{ prefix_list | sort(attribute='SEQ_NUM') }}"
+
+    - debug:
+        var: prefix_list
+
+    - name: Create IPV4 prefix list policy
+      vars:
+        ENTRY_LIST:
+          ENTRY_LIST: "{{ prefix_list }}"
+      cisco.dcnm.dcnm_policy:
+        fabric: "{{ fabric.name }}"
+        state: merged        # only choose form [merged, deleted, query]
+        config:
+          - name: ipv4_prefix_list
+            description: "Policy with multiple prefixes"
+            priority: 200
+            policy_vars:
+              PREFIX_LIST_NAME: multi_ipv4_prefix
+              DESC: "Prefixes 128 and 129"
+              ENTRY_LIST: "{{ ENTRY_LIST | to_json }}"
+          - switch:
+              - ip: "{{ fabric.leaf.0.ip }}"
+        deploy: true
+      register: result
